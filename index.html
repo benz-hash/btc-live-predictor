@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<title>BTC Live Predictor</title>
+<style>
+:root{color-scheme:dark;--bg:#080808;--panel:#151515;--muted:#a5a5a5;--green:#53e36a;--red:#ff3948;--line:#303030}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f5f5;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom));max-width:620px;margin-inline:auto}
+header{display:flex;justify-content:space-between;align-items:center;padding:18px 0 12px}.coin{background:#f5a33a;color:white;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:29px;font-weight:700}
+.pill{border:1px solid #292929;background:#171717;border-radius:999px;padding:8px 12px;color:#ddd;font-size:13px}
+.kicker{color:var(--muted);font-size:15px;margin-top:14px}.headline{font-size:clamp(32px,8vw,48px);font-weight:700;letter-spacing:-1.5px;margin:4px 0}.change{font-size:20px;margin:0 0 12px}.muted{color:var(--muted)}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.card{background:#121212;border:1px solid #242424;border-radius:20px;padding:16px;margin:14px 0}.chartbox{height:230px;position:relative;margin-top:10px}canvas{width:100%;height:100%;display:block}.chartlabels{display:flex;justify-content:space-between;color:#8e8e8e;font-size:12px;margin-top:4px}.sectiontitle{font-size:26px;font-weight:700;letter-spacing:-.5px;margin:26px 0 12px}.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}.choice{border:1px solid #292929;border-radius:18px;background:#171717;color:#fff;padding:15px 10px;font-size:18px;font-weight:650}.choice.up{border-bottom:3px solid var(--green)}.choice.down{border-bottom:3px solid var(--red)}.choice small{display:block;color:var(--muted);font-size:12px;font-weight:400;margin-top:5px}.choice:active{transform:scale(.98)}.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#171717;border-radius:14px;padding:12px}.stat label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.stat strong{font-size:17px}.green{color:var(--green)}.red{color:var(--red)}.notice{font-size:12px;color:#bcbcbc;line-height:1.45}.btn{background:#eee;color:#111;border:0;border-radius:14px;padding:13px 15px;font-weight:700;width:100%;font-size:15px}.btn.secondary{background:#202020;color:#fff;border:1px solid #333}.controls{display:flex;gap:8px}.controls .btn{flex:1}.statusdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px}.statusdot.off{background:#f4b942}.small{font-size:12px;color:var(--muted)}input{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:16px;margin-top:6px}.footer{padding:8px 2px 24px}.divider{height:1px;background:#222;margin:14px 0}
+</style>
+</head>
+<body>
+<header><div class="coin">₿</div><span class="pill"><span id="statusDot" class="statusdot off"></span><span id="connection">Connecting to price feed…</span></span></header>
+<div class="kicker">BTC • LIVE MARKET DATA</div>
+<div id="price" class="headline">Loading…</div>
+<div id="change" class="change muted">Fetching current BTC price</div>
+<div class="row"><span class="pill">BTC / USD</span><span id="updated" class="small">Waiting for update</span></div>
+<div class="card">
+ <div class="row"><strong>Live price chart</strong><span class="pill">1-minute updates</span></div>
+ <div class="chartbox"><canvas id="chart"></canvas></div>
+ <div class="chartlabels"><span id="low">Low: —</span><span id="high">High: —</span></div>
+</div>
+<div class="sectiontitle">AI prediction preview</div>
+<div class="card">
+ <div class="row"><div><div class="muted small">NEXT 5 MINUTES</div><strong id="signal">Collecting data…</strong></div><span id="signalBadge" class="pill">DEMO SIGNAL</span></div>
+ <div class="statgrid" style="margin-top:14px">
+  <div class="stat"><label>Up estimate</label><strong id="up" class="green">—</strong></div>
+  <div class="stat"><label>Down estimate</label><strong id="down" class="red">—</strong></div>
+  <div class="stat"><label>5-min change</label><strong id="momentum">—</strong></div>
+  <div class="stat"><label>Samples</label><strong id="samples">0</strong></div>
+ </div>
+ <p class="notice">These are experimental, rule-based estimates from recent price movement, not a trained or validated AI model. They are not Phantom market odds and do not guarantee a profitable prediction.</p>
+</div>
+<div class="sectiontitle">Paper trading</div>
+<div class="card">
+ <div class="row"><strong>Simulated trades only</strong><span class="pill">No real money</span></div>
+ <p class="notice">This version does not connect to Phantom or place real trades. Use it to observe the live price feed and test a strategy safely.</p>
+ <label class="small" for="balance">Paper account balance (£)</label><input id="balance" type="number" inputmode="decimal" min="1" step="1" value="100">
+ <div class="row" style="margin-top:12px"><label class="small" for="risk">Risk per qualifying signal</label><strong id="riskLabel">10%</strong></div>
+ <input id="risk" type="range" min="1" max="50" step="1" value="10" aria-label="Risk percentage">
+ <div class="row small"><span>1% cautious</span><span>50% very aggressive</span></div>
+ <div class="statgrid" style="margin-top:12px"><div class="stat"><label>Paper stake if signal qualifies</label><strong id="recommendedStake">£10.00</strong></div><div class="stat"><label>Signal quality gate</label><strong id="gate">Not qualified</strong></div></div>
+ <p class="notice">For this prototype, “risk” means the fraction of your paper balance allocated to a simulated trade, not a guaranteed maximum loss. A 50% stake can lose half the paper account on one losing trade.</p>
+ <div class="controls" style="margin-top:12px"><button class="btn" id="paperUp">Paper Up</button><button class="btn secondary" id="paperDown">Paper Down</button></div>
+ <div class="divider"></div>
+ <div class="statgrid"><div class="stat"><label>Paper trades</label><strong id="trades">0</strong></div><div class="stat"><label>Open paper stake</label><strong id="openStake">£0.00</strong></div></div>
+ <p id="tradeMsg" class="small">No paper trades yet.</p>
+</div>
+<div class="footer"><p class="notice">Data source: public Binance BTC/USDT market data. Requires an internet connection. This page is a prototype, not financial advice. Never share your Phantom recovery phrase or private keys with a trading bot.</p><button class="btn secondary" id="refresh">Refresh price data</button></div>
+<script>
+const $=id=>document.getElementById(id);
+const points=[];let previous=0;let trades=0;let openStake=0;
+const fmt=n=>n.toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2});
+async function fetchPrice(){
+ try{
+  const r=await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT',{cache:'no-store'});
+  if(!r.ok)throw Error('Price feed unavailable');const d=await r.json();const p=Number(d.price);
+  if(!Number.isFinite(p))throw Error('Bad price');
+  previous=points.length?points[points.length-1].p:p;points.push({t:Date.now(),p});if(points.length>90)points.shift();
+  $('price').textContent=fmt(p);const diff=points.length>1?p-points[0].p:0;const pct=points.length>1?diff/points[0].p*100:0;
+  $('change').textContent=(diff>=0?'+':'')+fmt(diff)+' ('+(pct>=0?'+':'')+pct.toFixed(3)+'%) over chart window';$('change').className='change '+(diff>=0?'green':'red');
+  $('statusDot').className='statusdot';$('connection').textContent='Live price connected';$('updated').textContent='Updated '+new Date().toLocaleTimeString();
+  $('low').textContent='Low: '+fmt(Math.min(...points.map(x=>x.p)));$('high').textContent='High: '+fmt(Math.max(...points.map(x=>x.p)));
+  updateEstimate();updateRiskUI();draw();
+ }catch(e){$('statusDot').className='statusdot off';$('connection').textContent='Feed unavailable';$('change').textContent='Could not fetch live price. Check internet and refresh.';}
+}
+function updateEstimate(){
+ const n=points.length;$('samples').textContent=n;
+ if(n<3){$('signal').textContent='Collecting data…';return}
+ const recent=points.slice(-6);const first=recent[0].p,last=recent[recent.length-1].p;const momentum=(last-first)/first*100;
+ let up=50+momentum*120;up=Math.max(5,Math.min(95,up));$('up').textContent=up.toFixed(0)+'%';$('down').textContent=(100-up).toFixed(0)+'%';$('momentum').textContent=(momentum>=0?'+':'')+momentum.toFixed(3)+'%';$('signal').textContent=up>=55?'Up bias':up<=45?'Down bias':'No clear edge';$('signal').className=up>=55?'green':up<=45?'red':'';
+}
+function draw(){
+ const c=$('chart'),ctx=c.getContext('2d'),rect=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1;c.width=Math.max(1,rect.width*dpr);c.height=Math.max(1,rect.height*dpr);ctx.scale(dpr,dpr);
+ const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);if(points.length<2)return;
+ const vals=points.map(x=>x.p),min=Math.min(...vals),max=Math.max(...vals),pad=12,range=(max-min)||1;
+ ctx.strokeStyle='#292929';ctx.lineWidth=1;for(let i=1;i<=3;i++){let y=pad+(h-2*pad)*i/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+ ctx.beginPath();points.forEach((v,i)=>{const x=i/(points.length-1)*w,y=h-pad-(v.p-min)/range*(h-2*pad);if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.strokeStyle=vals[vals.length-1]>=vals[0]?'#53e36a':'#ff3948';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();
+}
+function qualify(){
+ const upText=$('up').textContent;const up=Number.parseFloat(upText)||50;
+ const edge= Math.max(up,100-up);
+ // A conservative demo gate: require >=70% heuristic estimate and at least 6 data samples.
+ return points.length>=6 && edge>=70;
+}
+function updateRiskUI(){
+ const balance=Math.max(0,Number($('balance').value)||0);
+ const risk=Math.max(1,Math.min(50,Number($('risk').value)||10));
+ $('riskLabel').textContent=risk+'%';
+ $('recommendedStake').textContent='£'+(balance*risk/100).toFixed(2);
+ $('gate').textContent=qualify()?'Qualifies*':'Not qualified';
+ $('gate').className=qualify()?'green':'red';
+}
+function paper(direction){
+ const balance=Math.max(0,Number($('balance').value)||0);
+ const risk=Math.max(1,Math.min(50,Number($('risk').value)||10));
+ if(!balance){$('tradeMsg').textContent='Enter a paper balance greater than £0.';return}
+ if(!qualify()){$('tradeMsg').textContent='No paper trade placed: the demo signal has not met its qualifying threshold. This is a simple heuristic, not a validated edge.';return}
+ const up=Number.parseFloat($('up').textContent)||50;
+ const suggested=balance*risk/100;
+ const stake=Math.min(suggested,Math.max(0,balance-openStake));
+ if(stake<=0){$('tradeMsg').textContent='No available paper balance left to allocate.';return}
+ const selected=direction==='UP'?up:100-up;
+ if(selected<70){$('tradeMsg').textContent='No paper trade placed: selected direction does not meet the demo 70% threshold.';return}
+ trades++;openStake+=stake;$('trades').textContent=trades;$('openStake').textContent='£'+openStake.toFixed(2);$('tradeMsg').textContent='Paper '+direction+' trade #'+trades+' recorded for £'+stake.toFixed(2)+' at '+$('price').textContent+'. Stake sizing uses '+risk+'% of the entered paper balance. No live order was placed.';
+}
+$('paperUp').onclick=()=>paper('UP');$('paperDown').onclick=()=>paper('DOWN');
+$('balance').addEventListener('input',updateRiskUI);$('risk').addEventListener('input',updateRiskUI);
+$('refresh').onclick=fetchPrice;window.addEventListener('resize',draw);
+updateRiskUI();fetchPrice();setInterval(fetchPrice,5000);
+</script>
+</body></html>
